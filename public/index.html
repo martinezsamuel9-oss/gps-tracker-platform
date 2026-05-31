@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GPS Tracker</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{--bg:#0f172a;--bg2:#1e293b;--bg3:#334155;--text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;--accent:#3b82f6;--green:#22c55e;--red:#ef4444;--yellow:#f59e0b;--border:#334155;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+#map{flex:1;position:relative;z-index:1;}.leaflet-container{background:#1a1a2e;}
+#topbar{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:1000;}
+#search-box{background:var(--bg2);border:1px solid var(--border);border-radius:24px;padding:10px 18px;color:var(--text);font-size:14px;width:340px;outline:none;}
+#user-badge{position:fixed;top:16px;right:16px;z-index:1000;background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;}
+#map-tools{position:fixed;right:16px;top:70px;z-index:1000;display:flex;flex-direction:column;gap:8px;}
+.mbt{background:var(--bg2);border:1px solid var(--border);border-radius:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text2);transition:all .2s;font-size:20px;}
+.mbt:hover{background:var(--accent);color:white;}
+#sb{position:fixed;left:0;top:0;bottom:68px;width:340px;background:var(--bg2);border-right:1px solid var(--border);z-index:500;display:flex;flex-direction:column;transform:translateX(-100%);transition:transform .3s;}
+#sb.open{transform:translateX(0);}
+#sbt{position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:600;background:var(--accent);border-radius:0 8px 8px 0;width:22px;height:48px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:white;transition:left .3s;}
+#sbt.open{left:340px;}
+#ab{position:fixed;left:0;top:calc(50% + 56px);transform:translateY(-50%);z-index:600;background:var(--red);border-radius:0 8px 8px 0;width:22px;min-height:36px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:11px;font-weight:700;color:white;padding:4px 0;transition:left .3s;}
+#ab.open{left:340px;}
+.sbh{padding:14px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center;}
+.fsel{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:14px;outline:none;}
+.sv{margin:10px 12px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none;width:calc(100% - 24px);}
+.ftabs{display:flex;margin:0 12px 8px;border-radius:8px;overflow:hidden;border:1px solid var(--border);}
+.ftab{flex:1;padding:7px 4px;text-align:center;font-size:11px;font-weight:600;cursor:pointer;background:var(--bg3);color:var(--text2);border:none;}
+.ftab.active{background:var(--accent);color:white;}
+#vlist{flex:1;overflow-y:auto;min-height:0;}
+.vc{padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .2s;}
+.vc:hover{background:var(--bg3);}.vc.sel{background:rgba(59,130,246,.15);border-left:3px solid var(--accent);}
+.vtop{display:flex;align-items:center;gap:10px;margin-bottom:4px;}
+.vi{width:38px;height:38px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.vn{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vm{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.on{background:var(--green);box-shadow:0 0 6px var(--green);}.off{background:var(--text3);}
+.vsp{font-weight:700;font-size:13px;color:var(--accent);}
+.vt{font-size:11px;color:var(--text3);}
+.va{font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:8px;}
+.vacts{display:flex;gap:6px;}
+.vab{background:none;border:none;color:var(--text3);cursor:pointer;padding:4px;border-radius:4px;transition:color .2s;}
+.vab:hover{color:var(--text);}
+#ep{border-top:2px solid var(--border);max-height:260px;overflow-y:auto;flex-shrink:0;}
+.eph{padding:10px 14px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--bg2);z-index:2;}
+.ept{font-size:12px;font-weight:700;letter-spacing:.5px;}
+.ecnt{background:var(--red);color:white;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:6px;}
+.cbtn{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--text2);cursor:pointer;}
+.cbtn:hover{background:var(--red);color:white;border-color:var(--red);}
+.eg{padding:6px 14px;font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--red);}
+.ei{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.eii{flex:1;min-width:0;}.eit{font-size:12px;font-weight:600;}.ein{font-size:11px;color:var(--text3);}
+.abt{background:var(--red);color:white;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;}
+.abt:hover{background:#b91c1c;}
+#bnav{position:fixed;bottom:8px;left:50%;transform:translateX(-50%);z-index:1000;background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:8px 16px;display:flex;gap:4px;align-items:center;}
+.nb{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 14px;border-radius:12px;cursor:pointer;border:none;background:none;color:var(--text2);font-size:11px;font-weight:600;transition:all .2s;min-width:68px;}
+.nb:hover{background:var(--bg3);color:var(--text);}.nb.active{background:var(--accent);color:white;}
+.nd{width:1px;height:40px;background:var(--border);margin:0 4px;}
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;}
+.mo.h{display:none;}
+.md{background:var(--bg2);border:1px solid var(--border);border-radius:16px;width:100%;max-width:860px;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;}
+.mdh{padding:20px 24px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;flex-shrink:0;}
+.mdt{font-size:20px;font-weight:700;}.mds{font-size:13px;color:var(--text3);margin-top:2px;}
+.mc{background:none;border:none;color:var(--text3);cursor:pointer;font-size:22px;}
+.mtbs{display:flex;gap:8px;padding:14px 24px 0;flex-shrink:0;}
+.mtb{display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;background:none;border:1px solid var(--border);color:var(--text2);transition:all .2s;}
+.mtb.active{background:var(--accent);color:white;border-color:var(--accent);}
+.mb{padding:20px 24px;overflow-y:auto;flex:1;}
+.fi{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;outline:none;width:100%;}
+.fl{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px;}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.sbtn{background:var(--accent);color:white;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);transition:all .2s;}
+.sbtn.active{background:var(--accent)!important;color:white!important;}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;}
+.tbl th{text-align:left;padding:10px 12px;color:var(--text3);font-size:11px;font-weight:700;letter-spacing:.5px;border-bottom:1px solid var(--border);}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--border);}
+.bdg{padding:3px 8px;border-radius:20px;font-size:11px;font-weight:700;}
+.be{background:rgba(245,158,11,.15);color:var(--yellow);}.ba{background:rgba(34,197,94,.15);color:var(--green);}.br{background:rgba(239,68,68,.15);color:var(--red);}
+.pag{display:flex;align-items:center;gap:6px;padding:16px 0 0;justify-content:center;}
+.pp{width:32px;height:32px;border-radius:6px;border:1px solid var(--border);background:none;color:var(--text2);cursor:pointer;font-size:13px;}
+.pp.active{background:var(--accent);color:white;border-color:var(--accent);}
+#lp{position:fixed;right:68px;top:70px;z-index:1000;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;width:220px;display:none;}
+#lp.show{display:block;}
+.ltitle{font-size:13px;font-weight:700;margin-bottom:12px;}
+.sg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;}
+.so{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;border-radius:8px;border:2px solid var(--border);cursor:pointer;font-size:11px;font-weight:600;color:var(--text2);background:var(--bg3);transition:all .2s;}
+.so.active{border-color:var(--accent);color:var(--accent);background:rgba(59,130,246,.1);}
+.tr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.tgl{width:40px;height:22px;background:var(--bg3);border-radius:11px;position:relative;cursor:pointer;transition:background .2s;border:none;}
+.tgl.on{background:var(--accent);}
+.tgl::after{content:'';position:absolute;width:18px;height:18px;background:white;border-radius:50%;top:2px;left:2px;transition:left .2s;}
+.tgl.on::after{left:20px;}
+#vd{position:fixed;bottom:76px;left:50%;transform:translateX(-50%);z-index:900;background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:16px 20px;min-width:400px;max-width:520px;display:none;box-shadow:0 8px 32px rgba(0,0,0,.4);}
+#vd.show{display:block;}
+.vdt{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.vdi{font-size:28px;}.vdn{font-size:17px;font-weight:700;}.vdsu{font-size:12px;color:var(--text3);}
+.vdc{margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;}
+.vdst{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
+.vds{background:var(--bg3);border-radius:8px;padding:8px;text-align:center;}
+.vdv{font-size:16px;font-weight:700;color:var(--accent);}.vdl{font-size:10px;color:var(--text3);margin-top:2px;}
+.vdad{font-size:12px;color:var(--text3);margin-bottom:12px;display:flex;gap:6px;}
+.vdas{display:flex;gap:8px;flex-wrap:wrap;}
+.vdab{flex:1;min-width:80px;padding:8px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;transition:all .2s;}
+.vdab:hover{background:var(--accent);color:white;border-color:var(--accent);}
+.vdab.d:hover{background:var(--red);border-color:var(--red);}
+.vdab.s:hover{background:var(--green);border-color:var(--green);}
+#toast{position:fixed;bottom:84px;left:50%;transform:translateX(-50%);z-index:9999;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.4);display:none;}
+#ls{position:fixed;inset:0;background:var(--bg);z-index:9000;display:flex;align-items:center;justify-content:center;}
+#ls.h{display:none;}
+.lc{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:40px;width:380px;max-width:calc(100vw - 32px);}
+.lt{font-size:28px;font-weight:800;text-align:center;margin-bottom:4px;}
+.lsu{font-size:14px;color:var(--text3);text-align:center;margin-bottom:28px;}
+.lf{display:flex;flex-direction:column;gap:14px;}
+.lb{background:var(--accent);color:white;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;}
+.lb:hover{background:#2563eb;}
+.le{background:rgba(239,68,68,.1);border:1px solid var(--red);border-radius:8px;padding:10px;font-size:13px;color:var(--red);display:none;}
+.df{display:grid;grid-template-columns:1fr 1fr;gap:12px;}.df .full{grid-column:1/-1;}
+.di{background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:12px;}
+.din{flex:1;}.dim{font-weight:700;font-size:14px;}.dim2{font-size:12px;color:var(--text3);}
+.ib{background:none;border:1px solid var(--border);border-radius:6px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text2);}
+.ib:hover{background:var(--red);color:white;}
+.es{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--text3);padding:24px;text-align:center;}
+.gi{background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:12px;}
+.gc{width:12px;height:12px;border-radius:50%;flex-shrink:0;}.gn{font-weight:700;font-size:14px;}.gm{font-size:12px;color:var(--text3);}
+.tc{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;}
+.tct{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.tcd{font-size:22px;font-weight:700;color:var(--accent);}.tcdur{font-size:12px;color:var(--text3);}
+.tcg{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.tcc{background:var(--bg2);border-radius:8px;padding:8px 12px;}
+.tccl{font-size:10px;color:var(--text3);margin-bottom:2px;}.tccv{font-size:13px;font-weight:600;}
+::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:2px;}
+@media(max-width:600px){#sb{width:100vw;}#sbt.open,#ab.open{left:100vw;}.nb{min-width:54px;padding:8px;}.md{border-radius:16px 16px 0 0;}}
+</style></head><body>
+<div id="ls"><div class="lc"><div class="lt">🛰️ GPS Tracker</div><div class="lsu">Plataforma de rastreo vehicular</div><form class="lf" onsubmit="doLogin(event)"><div><label class="fl">Usuario</label><input class="fi" id="lu" type="text" placeholder="admin" required></div><div><label class="fl">Contraseña</label><input class="fi" id="lp2" type="password" placeholder="••••••••" required></div><div class="le" id="le">Credenciales incorrectas</div><button class="lb" type="submit">Ingresar</button></form></div></div>
+<div id="topbar"><input type="text" id="search-box" placeholder="Buscar activos..." oninput="onSearch(this.value)"></div>
+<div id="user-badge" onclick="toast('Usuario: '+(currentUser?.username||''))">👤 <span id="uname">-</span></div>
+<div id="map"></div>
+<div id="sbt" onclick="toggleSB()"><span id="sti">›</span></div>
+<div id="ab" onclick="toggleSB()"><span id="acnt">0</span>🔔</div>
+<div id="sb">
+  <div class="sbh"><select class="fsel" id="fsel"><option value="1">Flota Principal</option></select></div>
+  <input type="text" class="sv" placeholder="Buscar vehículos..." oninput="filterV(this.value)">
+  <div class="ftabs">
+    <button class="ftab active" onclick="setF('all',this)">TODOS (<span id="ca">0</span>)</button>
+    <button class="ftab" onclick="setF('online',this)">EN LÍNEA (<span id="co">0</span>)</button>
+    <button class="ftab" onclick="setF('offline',this)">OFFLINE (<span id="cf">0</span>)</button>
+  </div>
+  <div id="vlist"></div>
+  <div id="ep">
+    <div class="eph"><div class="ept">EVENTOS <span class="ecnt" id="ecnt">0</span></div><button class="cbtn" onclick="clearEvts()">Limpiar todo</button></div>
+    <div id="elist"></div>
+  </div>
+</div>
+<div id="map-tools">
+  <div class="mbt" onclick="toggleLP()" title="Capas">🗺️</div>
+  <div class="mbt" onclick="showDevices()" title="Dispositivos">📱</div>
+</div>
+<div id="lp">
+  <div class="ltitle">Capas del Mapa</div>
+  <div class="sg">
+    <div class="so active" id="ss" onclick="setStyle('streets')">🗺️<span>Calles</span></div>
+    <div class="so" id="ssat" onclick="setStyle('satellite')">🛰️<span>Satélite</span></div>
+    <div class="so" id="sd" onclick="setStyle('dark')">🌙<span>Oscuro</span></div>
+  </div>
+</div>
+<div id="vd">
+  <div class="vdt"><div class="vdi">🚛</div><div><div class="vdn" id="vdn">-</div><div class="vdsu" id="vdsu">-</div></div><button class="vdc" onclick="document.getElementById('vd').classList.remove('show')">✕</button></div>
+  <div class="vdst">
+    <div class="vds"><div class="vdv" id="vdsp">0</div><div class="vdl">km/h</div></div>
+    <div class="vds"><div class="vdv" id="vdsa">0</div><div class="vdl">Satélites</div></div>
+    <div class="vds"><div class="vdv" id="vdbt">-</div><div class="vdl">Batería</div></div>
+    <div class="vds"><div class="vdv" id="vdvt">-</div><div class="vdl">Voltaje</div></div>
+  </div>
+  <div class="vdad">📍 <span id="vdad">-</span></div>
+  <div class="vdas">
+    <button class="vdab" onclick="followSel()">👁 Seguir</button>
+    <button class="vdab" onclick="showTripsFor(selImei)">📊 Viajes</button>
+    <button class="vdab" onclick="shareSel()">🔗 Compartir</button>
+    <button class="vdab s" onclick="sendCmd('engine_on')">⚡ Restaurar</button>
+    <button class="vdab d" onclick="sendCmd('engine_off')">✂️ Cortar</button>
+  </div>
+</div>
+<div id="toast"></div>
+<nav id="bnav">
+  <button class="nb active" id="nt" onclick="setNav('t')">🎯<span>Rastrear</span></button>
+  <button class="nb" id="na" onclick="setNav('a')">🔔<span>Alertas</span></button>
+  <button class="nb" id="np" onclick="setNav('p')">📍<span>Lugares</span></button>
+  <button class="nb" id="nr" onclick="setNav('r')">📊<span>Reportes</span></button>
+  <div class="nd"></div>
+  <button class="nb" onclick="doLogout()">🚪<span>Salir</span></button>
+</nav>
+<!-- PLACES MODAL -->
+<div class="mo h" id="mp"><div class="md" style="max-width:920px">
+  <div class="mdh"><div><div class="mdt">Lugares</div><div class="mds">Geocercas y puntos de referencia</div></div><button class="mc" onclick="closeM('mp')">✕</button></div>
+  <div class="mtbs"><button class="mtb active" id="ptg" onclick="switchP('g')">📍 Geocercas</button><button class="mtb" id="ptr" onclick="switchP('r')">🔖 Referencias</button></div>
+  <div class="mb">
+    <div id="pgeo">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span style="font-size:16px;font-weight:700">Geocercas</span>
+        <button onclick="showCG()" style="background:var(--accent);color:white;border:none;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer">+ Crear Geocerca</button>
+      </div>
+      <input type="text" class="fi" placeholder="Buscar geocercas..." oninput="filterGeos(this.value)" style="margin-bottom:12px">
+      <div id="glist"><div class="es">⬡<br>Sin geocercas</div></div>
+    </div>
+    <div id="pref" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><span style="font-size:16px;font-weight:700">Referencias</span><button onclick="showCR()" style="background:var(--accent);color:white;border:none;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer">+ Crear Referencia</button></div>
+      <div id="rlist"><div class="es">📍<br>Sin referencias</div></div>
+    </div>
+  </div>
+</div></div>
+<!-- REPORTS MODAL -->
+<div class="mo h" id="mr"><div class="md">
+  <div class="mdh"><div><div class="mdt">Reportes</div><div class="mds">Actividad y analíticas</div></div><button class="mc" onclick="closeM('mr')">✕</button></div>
+  <div class="mtbs"><button class="mtb active" id="rrl" onclick="switchR('l')">🔗 Historial de enlaces</button><button class="mtb" id="rrt" onclick="switchR('t')">🚗 Viajes</button></div>
+  <div class="mb">
+    <div id="rl">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="sbtn active" id="lfa" onclick="lf('all')">Todos</button>
+        <button class="sbtn" id="lfe" onclick="lf('expired')">● Expirado</button>
+        <button class="sbtn" id="lfr" onclick="lf('revoked')">● Revocado</button>
+      </div>
+      <div id="ltbl"></div><div id="lpag" class="pag"></div>
+    </div>
+    <div id="rt" style="display:none">
+      <div style="margin-bottom:12px"><label class="fl">Vehículo</label><select class="fi" id="tveh" onchange="loadTrips()"><option value="">-- Seleccionar --</option></select></div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button class="sbtn active" id="tsh" onclick="setTS('today')">Hoy</button>
+        <button class="sbtn" id="tsy" onclick="setTS('yesterday')">Ayer</button>
+        <button class="sbtn" id="tsw" onclick="setTS('week')">7 días</button>
+      </div>
+      <div class="fr" style="margin-bottom:12px">
+        <div><label class="fl">Desde</label><input type="date" class="fi" id="tfrom" onchange="loadTrips()"></div>
+        <div><label class="fl">Hasta</label><input type="date" class="fi" id="tto" onchange="loadTrips()"></div>
+      </div>
+      <div id="trlist"><div class="es">🚗<br>Seleccione un vehículo</div></div>
+    </div>
+  </div>
+</div></div>
+<!-- DEVICES MODAL -->
+<div class="mo h" id="mdev"><div class="md" style="max-width:640px">
+  <div class="mdh"><div><div class="mdt">Dispositivos GPS</div></div><button class="mc" onclick="closeM('mdev')">✕</button></div>
+  <div class="mb">
+    <div style="background:var(--bg3);border-radius:12px;padding:16px;margin-bottom:16px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px">Agregar Dispositivo</div>
+      <div class="df">
+        <div><label class="fl">IMEI *</label><input class="fi" id="di" placeholder="863456789012345"></div>
+        <div><label class="fl">Nombre *</label><input class="fi" id="dn" placeholder="CAMION NORTE 1"></div>
+        <div><label class="fl">Marca</label><input class="fi" id="dbr" value="SINOTRACK"></div>
+        <div><label class="fl">Modelo</label><input class="fi" id="dm" value="ST-906L-4G"></div>
+        <div><label class="fl">SIM</label><input class="fi" id="ds" placeholder="+50498765432"></div>
+        <div><label class="fl">Vel. máx (km/h)</label><input class="fi" id="dsp" type="number" placeholder="120"></div>
+        <div class="full"><button onclick="addDevice()" style="background:var(--accent);color:white;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;width:100%">+ Agregar</button></div>
+      </div>
+    </div>
+    <div id="devlist"></div>
+    <div style="margin-top:14px;padding:12px;background:rgba(59,130,246,.1);border:1px solid var(--accent);border-radius:10px;font-size:12px;color:var(--text2)">
+      <strong>⚙️ Config Sinotrack:</strong> Servidor GPS: <code style="background:var(--bg3);padding:2px 6px;border-radius:4px">TU_IP:5000</code> · Protocolo: HQ
+    </div>
+  </div>
+</div></div>
+<!-- CREATE GEO MODAL -->
+<div class="mo h" id="mcg"><div class="md" style="max-width:500px">
+  <div class="mdh"><div><div class="mdt">Crear Geocerca</div></div><button class="mc" onclick="closeM('mcg')">✕</button></div>
+  <div class="mb" style="display:flex;flex-direction:column;gap:12px">
+    <div><label class="fl">Nombre *</label><input class="fi" id="gname" placeholder="Bodega Central"></div>
+    <div class="fr">
+      <div><label class="fl">Latitud</label><input class="fi" id="glat" type="number" step="0.000001" placeholder="14.05"></div>
+      <div><label class="fl">Longitud</label><input class="fi" id="glng" type="number" step="0.000001" placeholder="-87.20"></div>
+    </div>
+    <div><label class="fl">Radio (metros)</label><input class="fi" id="grad" type="number" value="500"></div>
+    <div><label class="fl">Descripción</label><textarea class="fi" id="gdesc" rows="2"></textarea></div>
+    <div class="fr">
+      <div><label class="fl">Color</label><input type="color" class="fi" id="gcol" value="#3b82f6" style="height:42px"></div>
+      <div><label class="fl">Categoría</label><input class="fi" id="gcat" placeholder="Bodega, Cliente..."></div>
+    </div>
+    <div><label class="fl">Prioridad</label>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button class="sbtn active" id="prl" onclick="setPrio('low')">Baja</button>
+        <button class="sbtn" id="prm" onclick="setPrio('medium')">Media</button>
+        <button class="sbtn" id="prh" onclick="setPrio('high')">Alta</button>
+      </div>
+    </div>
+    <button onclick="saveGeo()" style="background:var(--accent);color:white;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer">Guardar Geocerca</button>
+  </div>
+</div></div>
+<script>
+let token=localStorage.getItem('gt'),currentUser=JSON.parse(localStorage.getItem('gu')||'null');
+let vehicles=[],alerts=[],geofences=[],selImei=null,followImei=null;
+let cFilter='all',map,markers={},tileL=null,ws=null,wsR=0,ri=null,gPrio='low';
+const TILES={streets:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',satellite:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',dark:'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'};
+
+window.onload=()=>{if(token&&currentUser){document.getElementById('ls').classList.add('h');initApp();}};
+
+async function doLogin(e){
+  e.preventDefault();
+  try{
+    const r=await api('/auth/login','POST',{username:document.getElementById('lu').value,password:document.getElementById('lp2').value});
+    token=r.token;currentUser=r.user;
+    localStorage.setItem('gt',token);localStorage.setItem('gu',JSON.stringify(r.user));
+    document.getElementById('ls').classList.add('h');
+    initApp();
+  }catch(err){document.getElementById('le').style.display='block';setTimeout(()=>document.getElementById('le').style.display='none',3000);}
+}
+
+function doLogout(){localStorage.removeItem('gt');localStorage.removeItem('gu');if(ws)ws.close();if(ri)clearInterval(ri);location.reload();}
+
+function initApp(){
+  document.getElementById('uname').textContent=currentUser?.username||'User';
+  initMap();loadVehicles();loadAlerts();connectWS();
+  ri=setInterval(()=>{loadVehicles();loadAlerts();},30000);
+}
+
+async function api(path,method='GET',body=null){
+  const opts={method,headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}};
+  if(body)opts.body=JSON.stringify(body);
+  const r=await fetch('/api'+path,opts);
+  if(r.status===401){doLogout();return;}
+  if(!r.ok)throw new Error(await r.text());
+  return r.json();
+}
+
+function initMap(){
+  map=L.map('map',{zoomControl:true,attributionControl:false});
+  map.setView([14.08,-87.2],8);
+  setStyle('streets');
+  map.on('click',e=>{
+    if(document.getElementById('glat')){
+      document.getElementById('glat').value=e.latlng.lat.toFixed(6);
+      document.getElementById('glng').value=e.latlng.lng.toFixed(6);
+    }
+  });
+}
+
+function setStyle(s){
+  if(tileL)map.removeLayer(tileL);
+  tileL=L.tileLayer(TILES[s]||TILES.streets,{maxZoom:20}).addTo(map);
+  document.querySelectorAll('.so').forEach(el=>el.classList.remove('active'));
+  document.getElementById({streets:'ss',satellite:'ssat',dark:'sd'}[s]||'ss')?.classList.add('active');
+}
+
+function mkIcon(pos,sel){
+  const color=sel?'#3b82f6':(pos?.ignition?'#22c55e':'#94a3b8');
+  const h=pos?.heading||0;
+  return L.divIcon({className:'',html:'<div style="width:32px;height:32px;transform:rotate('+h+'deg)"><svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><path d="M20 4 L32 34 L20 28 L8 34 Z" fill="'+color+'" stroke="white" stroke-width="2"/></svg></div>',iconSize:[32,32],iconAnchor:[16,16]});
+}
+
+async function loadVehicles(){
+  try{
+    const d=await api('/startup-fleet/company/'+currentUser.company_id);
+    vehicles=d.data||[];
+    renderVL();updateMM();
+  }catch(e){console.error(e);}
+}
+
+function renderVL(){
+  const on=vehicles.filter(v=>v.gpsPosition);
+  const off=vehicles.filter(v=>!v.gpsPosition);
+  document.getElementById('ca').textContent=vehicles.length;
+  document.getElementById('co').textContent=on.length;
+  document.getElementById('cf').textContent=off.length;
+  let f=vehicles;
+  if(cFilter==='online')f=on;
+  if(cFilter==='offline')f=off;
+  const q=(document.querySelector('.sv')?.value||'').toLowerCase();
+  if(q)f=f.filter(v=>(v.gpsPosition?.asset_name||'').toLowerCase().includes(q)||(v.device?.imei||'').includes(q));
+  document.getElementById('vlist').innerHTML=f.map(v=>renderVC(v)).join('');
+}
+
+function renderVC(v){
+  const p=v.gpsPosition,n=p?.asset_name||'Vehículo',imei=v.device?.imei,sel=imei===selImei;
+  const addr=(p?.geo_coding||'Sin posición').substring(0,55)+'...';
+  return '<div class="vc'+(sel?' sel':'')+ '" onclick="selV(''+imei+'')">'
+    +'<div class="vtop"><div class="vi">🚛</div><div style="flex:1;min-width:0"><div class="vn">'+n+'</div>'
+    +'<div class="vm"><span class="dot '+(p?'on':'off')+'"></span><span class="vsp">'+(p?.speed||0)+' km/h</span><span class="vt">'+timeAgo(p?.gps_timestamp)+'</span>'+(p?.ignition?'🔑':'')+'</div></div></div>'
+    +'<div class="va">'+addr+'</div>'
+    +'<div class="vacts">'
+    +'<button class="vab" onclick="event.stopPropagation();followV(''+imei+'')">👁</button>'
+    +'<button class="vab" onclick="event.stopPropagation();showTripsFor(''+imei+'')">📊</button>'
+    +'<button class="vab" onclick="event.stopPropagation();shareV(''+imei+'',''+n+'')">🔗</button>'
+    +'<button class="vab" onclick="event.stopPropagation();cmdTo(''+imei+'','engine_on')">⚡</button>'
+    +'<button class="vab" onclick="event.stopPropagation();cmdTo(''+imei+'','engine_off')">✂️</button>'
+    +'</div></div>';
+}
+
+function updateMM(){
+  vehicles.forEach(v=>{
+    const p=v.gpsPosition;if(!p||!p.is_valid_gps)return;
+    const imei=v.device?.imei,ll=[p.latitude,p.longitude];
+    if(markers[imei]){markers[imei].setLatLng(ll);markers[imei].setIcon(mkIcon(p,imei===selImei));}
+    else{markers[imei]=L.marker(ll,{icon:mkIcon(p,false)}).addTo(map).bindTooltip(p.asset_name||'',{permanent:true,className:'vehicle-label',direction:'top'}).on('click',()=>selV(imei));}
+    if(followImei===imei)map.setView(ll,map.getZoom());
+  });
+}
+
+function selV(imei){
+  selImei=imei;
+  const v=vehicles.find(x=>x.device?.imei===imei);
+  const p=v?.gpsPosition;if(!p)return;
+  renderVL();
+  if(markers[imei])map.setView([p.latitude,p.longitude],Math.max(map.getZoom(),14));
+  document.getElementById('vdn').textContent=p.asset_name||'Vehículo';
+  document.getElementById('vdsu').textContent=(v.device?.imei||'')+' · '+(v.device?.brand||'');
+  document.getElementById('vdsp').textContent=p.speed||0;
+  document.getElementById('vdsa').textContent=p.satellites||0;
+  document.getElementById('vdbt').textContent=p.battery_level!=null?p.battery_level+'%':'-';
+  document.getElementById('vdvt').textContent=p.voltage!=null?p.voltage+'V':'-';
+  document.getElementById('vdad').textContent=p.geo_coding||p.latitude.toFixed(5)+', '+p.longitude.toFixed(5);
+  document.getElementById('vd').classList.add('show');
+}
+
+function followSel(){followV(selImei);}
+function followV(imei){followImei=followImei===imei?null:imei;toast(followImei?'Siguiendo vehículo...':'Dejó de seguir');}
+function filterV(q){renderVL();}
+function setF(f,el){cFilter=f;document.querySelectorAll('.ftab').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderVL();}
+function onSearch(q){document.querySelectorAll('.vc').forEach(c=>{c.style.display=!q||c.textContent.toLowerCase().includes(q.toLowerCase())?'':'none';});}
+
+async function loadAlerts(){
+  try{
+    const d=await api('/gps/panic-events/unacknowledged','POST',{});
+    alerts=d||[];
+    document.getElementById('acnt').textContent=alerts.length;
+    document.getElementById('ecnt').textContent=alerts.length;
+    const el=document.getElementById('elist');
+    if(!alerts.length){el.innerHTML='<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">Sin alertas</div>';return;}
+    el.innerHTML='<div class="eg">🚨 ALERTA DE PÁNICO ('+alerts.length+')</div>'
+      +alerts.map(a=>'<div class="ei"><div style="font-size:18px">🔴</div><div class="eii"><div class="eit">Alerta de pánico</div><div class="ein">'+(a.device_name||a.asset_name||a.device_imei)+'</div></div><button class="abt" onclick="attendA(''+a.id+'')">ATENDER</button></div>').join('');
+  }catch(e){}
+}
+
+async function attendA(id){
+  try{await api('/alerts/'+id+'/acknowledge','POST',{});alerts=alerts.filter(a=>a.id!==id);loadAlerts();toast('✅ Alerta atendida');}
+  catch(e){toast('Error: '+e.message);}
+}
+async function clearEvts(){try{await api('/alerts/all','DELETE');alerts=[];loadAlerts();toast('✅ Limpias');}catch(e){}}
+
+function connectWS(){
+  const url=(location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/ws?companyId='+currentUser.company_id;
+  ws=new WebSocket(url);
+  ws.onmessage=e=>{
+    const msg=JSON.parse(e.data);
+    if(msg.type==='gps_update'){const p=msg.data;const v=vehicles.find(x=>x.device?.imei===p.device_imei);if(v){v.gpsPosition={...v.gpsPosition,...p};renderVL();updateMM();}}
+    if(msg.type==='alert'){alerts.unshift(msg.data);loadAlerts();toast('🚨 Alerta: '+(msg.data.device_name||msg.data.device_imei));}
+  };
+  ws.onclose=()=>{wsR++;setTimeout(connectWS,Math.min(30000,wsR*5000));};
+  ws.onerror=()=>ws.close();
+}
+
+function setNav(tab){
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  document.getElementById('n'+tab)?.classList.add('active');
+  if(tab==='p')openM('mp');
+  if(tab==='r'){openM('mr');loadLinks();}
+}
+
+function toggleSB(){const sb=document.getElementById('sb'),st=document.getElementById('sbt'),ab=document.getElementById('ab');const o=sb.classList.toggle('open');st.classList.toggle('open',o);ab.classList.toggle('open',o);document.getElementById('sti').textContent=o?'‹':'›';}
+function openM(id){document.getElementById(id).classList.remove('h');}
+function closeM(id){document.getElementById(id).classList.add('h');document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));}
+function toggleLP(){document.getElementById('lp').classList.toggle('show');}
+
+function switchP(t){document.getElementById('pgeo').style.display=t==='g'?'':'none';document.getElementById('pref').style.display=t==='r'?'':'none';document.getElementById('ptg').classList.toggle('active',t==='g');document.getElementById('ptr').classList.toggle('active',t==='r');if(t==='g')loadGeos();}
+
+async function loadGeos(){
+  try{
+    const d=await api('/geofences/company/'+currentUser.company_id);
+    geofences=d.data||[];
+    const el=document.getElementById('glist');
+    if(!geofences.length){el.innerHTML='<div class="es">⬡<br>Sin geocercas</div>';return;}
+    el.innerHTML=geofences.map(g=>'<div class="gi"><div class="gc" style="background:'+(g.color||'#3b82f6')+'"></div><div style="flex:1"><div class="gn">'+g.name+'</div><div class="gm">'+(g.shape||'')+' · '+(g.category||'-')+'</div></div><button class="ib" onclick="delGeo('+g.id+')">🗑</button></div>').join('');
+  }catch(e){}
+}
+function filterGeos(q){document.querySelectorAll('.gi').forEach(el=>{el.style.display=!q||el.textContent.toLowerCase().includes(q.toLowerCase())?'':'none';});}
+function showCG(){openM('mcg');}
+function setPrio(p){gPrio=p;['l','m','h'].forEach(x=>document.getElementById('pr'+x).classList.remove('active'));document.getElementById('pr'+{low:'l',medium:'m',high:'h'}[p]).classList.add('active');}
+
+async function saveGeo(){
+  const name=document.getElementById('gname').value;
+  const lat=parseFloat(document.getElementById('glat').value);
+  const lng=parseFloat(document.getElementById('glng').value);
+  if(!name){toast('⚠️ Nombre requerido');return;}
+  if(!lat||!lng){toast('⚠️ Coordenadas requeridas - click en el mapa');return;}
+  try{
+    await api('/geofences','POST',{name,description:document.getElementById('gdesc').value,shape:'circle',center_lat:lat,center_lng:lng,radius:parseInt(document.getElementById('grad').value)||500,color:document.getElementById('gcol').value,category:document.getElementById('gcat').value,priority:gPrio});
+    closeM('mcg');loadGeos();toast('✅ Geocerca creada');
+  }catch(e){toast('Error: '+e.message);}
+}
+async function delGeo(id){if(!confirm('¿Eliminar?'))return;await api('/geofences/'+id,'DELETE');loadGeos();toast('✅ Eliminada');}
+
+async function loadLinks(page=1,status=''){
+  let url='/share-links?page='+page+'&limit=10';
+  if(status)url+='&status='+status;
+  try{
+    const d=await api(url);
+    const el=document.getElementById('ltbl');
+    if(!d.data?.length){el.innerHTML='<div class="es">🔗<br>Sin enlaces</div>';return;}
+    el.innerHTML='<table class="tbl"><thead><tr><th>Vehículo</th><th>Estado</th><th>Accesos</th><th>Creado</th></tr></thead><tbody>'
+      +d.data.map(l=>'<tr><td>'+(l.display_names?.[0]||l.imeis?.[0]||'-')+'</td><td><span class="bdg b'+l.status.substring(0,1)+'">'+l.status.toUpperCase()+'</span></td><td>'+(l.access_count||0)+'</td><td>'+fDate(l.created_at)+'</td></tr>').join('')+'</tbody></table>';
+  }catch(e){}
+}
+
+function lf(s){['a','e','r'].forEach(x=>document.getElementById('lf'+x).classList.remove('active'));document.getElementById('lf'+{all:'a',expired:'e',revoked:'r'}[s]).classList.add('active');loadLinks(1,s==='all'?'':s);}
+function switchR(t){document.getElementById('rl').style.display=t==='l'?'':'none';document.getElementById('rt').style.display=t==='t'?'':'none';document.getElementById('rrl').classList.toggle('active',t==='l');document.getElementById('rrt').classList.toggle('active',t==='t');if(t==='l')loadLinks();if(t==='t')initTrips();}
+
+function initTrips(){
+  const sel=document.getElementById('tveh');
+  sel.innerHTML='<option value="">-- Seleccionar --</option>';
+  vehicles.forEach(v=>{const n=v.gpsPosition?.asset_name||v.device?.imei;sel.innerHTML+='<option value="'+v.device?.imei+'">'+n+'</option>';});
+  const today=new Date().toISOString().split('T')[0];
+  document.getElementById('tfrom').value=today;document.getElementById('tto').value=today;
+}
+
+function setTS(s){
+  const t=new Date(),f=d=>d.toISOString().split('T')[0];
+  if(s==='today'){document.getElementById('tfrom').value=document.getElementById('tto').value=f(t);}
+  else if(s==='yesterday'){const y=new Date(t);y.setDate(y.getDate()-1);document.getElementById('tfrom').value=document.getElementById('tto').value=f(y);}
+  else if(s==='week'){const w=new Date(t);w.setDate(w.getDate()-7);document.getElementById('tfrom').value=f(w);document.getElementById('tto').value=f(t);}
+  ['h','y','w'].forEach(x=>document.getElementById('ts'+x).classList.remove('active'));
+  document.getElementById('ts'+{today:'h',yesterday:'y',week:'w'}[s]).classList.add('active');
+  loadTrips();
+}
+
+async function loadTrips(){
+  const imei=document.getElementById('tveh').value;if(!imei)return;
+  const from=document.getElementById('tfrom').value,to=document.getElementById('tto').value;
+  try{
+    const trips=await api('/gps/trips?imei='+imei+'&startDate='+from+'&endDate='+to);
+    const el=document.getElementById('trlist');
+    if(!trips.length){el.innerHTML='<div class="es">🚗<br>Sin viajes en este período</div>';return;}
+    el.innerHTML=trips.map(t=>'<div class="tc"><div class="tct"><div class="tcd">'+((t.distance_km||0).toFixed(1))+' km</div><div class="tcdur">'+Math.round(t.duration_minutes||0)+' min</div></div><div class="tcg"><div class="tcc"><div class="tccl">Inicio</div><div class="tccv">'+fDT(t.start_time)+'</div></div><div class="tcc"><div class="tccl">Fin</div><div class="tccv">'+fDT(t.end_time)+'</div></div><div class="tcc"><div class="tccl">Vel. máx</div><div class="tccv">'+((t.max_speed||0).toFixed(0))+' km/h</div></div><div class="tcc"><div class="tccl">Vel. prom</div><div class="tccv">'+((t.avg_speed||0).toFixed(0))+' km/h</div></div></div></div>').join('');
+  }catch(e){toast('Error: '+e.message);}
+}
+
+function showTripsFor(imei){
+  openM('mr');switchR('t');
+  setTimeout(()=>{if(imei){document.getElementById('tveh').value=imei;loadTrips();}},100);
+}
+
+function showDevices(){openM('mdev');loadDevices();}
+
+async function loadDevices(){
+  const d=await api('/devices');
+  const devs=d.data||[];
+  const el=document.getElementById('devlist');
+  if(!devs.length){el.innerHTML='<div class="es">📡<br>Sin dispositivos</div>';return;}
+  el.innerHTML=devs.map(d=>'<div class="di"><div style="font-size:24px">📡</div><div class="din"><div class="dim">'+d.name+'</div><div class="dim2">'+d.imei+' · '+d.brand+' '+d.model+'</div></div><button class="ib" onclick="delDev(''+d.imei+'')">🗑</button></div>').join('');
+}
+
+async function addDevice(){
+  const imei=document.getElementById('di').value,name=document.getElementById('dn').value;
+  if(!imei||!name){toast('⚠️ IMEI y nombre requeridos');return;}
+  try{await api('/devices','POST',{imei,name,brand:document.getElementById('dbr').value||'SINOTRACK',model:document.getElementById('dm').value||'ST-906L',simcard_number:document.getElementById('ds').value,speed_limit:parseInt(document.getElementById('dsp').value)||null});toast('✅ Dispositivo agregado');loadDevices();['di','dn','ds','dsp'].forEach(id=>document.getElementById(id).value='');}
+  catch(e){toast('Error: '+e.message);}
+}
+async function delDev(imei){if(!confirm('¿Eliminar '+imei+'?'))return;await api('/devices/'+imei,'DELETE');loadDevices();loadVehicles();toast('✅ Eliminado');}
+
+async function shareV(imei,name){
+  try{const r=await api('/share-links','POST',{imeis:[imei],display_names:[name],expires_hours:24});const url=location.origin+'/share/'+r.token;if(navigator.clipboard)await navigator.clipboard.writeText(url);toast('🔗 Link copiado: '+url,5000);}
+  catch(e){toast('Error: '+e.message);}
+}
+function shareSel(){const v=vehicles.find(x=>x.device?.imei===selImei);if(v)shareV(selImei,v.gpsPosition?.asset_name||'Vehículo');}
+
+async function sendCmd(cmd){if(selImei)cmdTo(selImei,cmd);}
+async function cmdTo(imei,cmd){
+  if(!confirm(cmd==='engine_off'?'⚠️ ¿Cortar motor?':'¿Restaurar motor?'))return;
+  try{const r=await api('/commands/send','POST',{imei,command:cmd});toast('✅ '+r.message);}
+  catch(e){toast('Error: '+e.message);}
+}
+
+function toast(msg,d=3000){const el=document.getElementById('toast');el.textContent=msg;el.style.display='block';setTimeout(()=>el.style.display='none',d);}
+function timeAgo(ts){if(!ts)return '--';const d=Math.floor((Date.now()-new Date(ts))/1000);if(d<60)return 'Ahora';if(d<3600)return Math.floor(d/60)+' min';if(d<86400)return Math.floor(d/3600)+'h';return Math.floor(d/86400)+'d';}
+function fDate(ts){return ts?new Date(ts).toLocaleDateString('es'):'--';}
+function fDT(ts){return ts?new Date(ts).toLocaleString('es',{month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'--';}
+
+// Open places and load geofences
+const pobs=new MutationObserver(()=>{if(!document.getElementById('mp').classList.contains('h')){switchP('g');}});
+pobs.observe(document.getElementById('mp'),{attributes:true,attributeFilter:['class']});
+</script></body></html>
