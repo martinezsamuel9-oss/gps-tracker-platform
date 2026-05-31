@@ -155,7 +155,7 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS trips (
-    id INTEGER PRIMARY KEY Asrc/db/database.jsUTOINCREMENT,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     device_imei TEXT NOT NULL,
     start_time TEXT NOT NULL,
     end_time TEXT,
